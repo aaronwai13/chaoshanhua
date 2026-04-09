@@ -26,6 +26,10 @@
       --border-strong: #D0D0CC;
       --accent: #C8372E;
       --accent-light: #F9ECEB;
+      --green: #1A6B45;
+      --green-light: #E8F5EE;
+      --amber: #8B5E00;
+      --amber-light: #FEF7E8;
       --red: #C0392B;
       --red-light: #FDF0EE;
       --shadow: 0 2px 12px rgba(0,0,0,0.07);
@@ -41,6 +45,10 @@
         --border-strong: #3A3A3C;
         --accent: #E87070;
         --accent-light: #2A1111;
+        --green: #4ADE80;
+        --green-light: #0A2016;
+        --amber: #FCD34D;
+        --amber-light: #251A00;
         --red: #F87171;
         --red-light: #2A1010;
         --shadow: 0 2px 16px rgba(0,0,0,0.4);
@@ -52,7 +60,7 @@
       background: var(--bg); color: var(--text);
       font-family: 'Figtree', sans-serif;
       min-height: 100vh;
-      padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+      padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
     }
     #app { max-width: 480px; margin: 0 auto; }
 
@@ -131,13 +139,14 @@
       font-size: 13px; color: var(--accent); font-weight: 500;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-    .word-cat {
-      font-size: 10px; font-weight: 600;
-      padding: 2px 7px; border-radius: 6px;
-      font-family: 'DM Mono', monospace;
-      background: var(--accent-light); color: var(--accent);
-      display: inline-block; margin-top: 4px;
+    .badge {
+      font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 6px;
+      font-family: 'DM Mono', monospace; display: inline-block; margin-top: 4px;
     }
+    .badge-green { background: var(--green-light); color: var(--green); }
+    .badge-amber { background: var(--amber-light); color: var(--amber); }
+    .badge-red   { background: var(--red-light);   color: var(--red); }
+    .badge-blue  { background: var(--accent-light); color: var(--accent); }
     .word-edit-btn {
       width: 32px; height: 32px; border-radius: 8px;
       border: 1.5px solid var(--border);
@@ -473,6 +482,14 @@
     return vocab.length ? Math.max(...vocab.map(w => w.id)) + 1 : 1;
   }
 
+  // ── Badge colour per category ──
+  function catBadge(cat) {
+    const map = { '食材':'badge-red', '蔬菜':'badge-green', '麵食':'badge-amber',
+                  '常用語':'badge-blue', '交通':'badge-blue', '代詞':'badge-blue',
+                  '動詞':'badge-amber', '地點':'badge-green' };
+    return map[cat] || 'badge-blue';
+  }
+
   // ── Escape helpers ──
   function esc(s) {
     return String(s)
@@ -527,7 +544,7 @@
         <div class="word-zh">${esc(w.zh)}</div>
         <div class="word-info">
           <div class="word-ro">${esc(w.ro)}</div>
-          <div class="word-cat">${esc(w.cat)}</div>
+          <span class="badge ${catBadge(w.cat)}">${esc(w.cat)}</span>
         </div>
         <button class="word-edit-btn" data-id="${w.id}" aria-label="修改">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

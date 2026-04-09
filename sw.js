@@ -1,4 +1,4 @@
-const CACHE = 'teochew-v3';
+const CACHE = 'teochew-v4';
 
 self.addEventListener('install', e => {
   e.waitUntil(

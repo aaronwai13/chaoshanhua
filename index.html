@@ -123,6 +123,8 @@
     .toolbar {
       display: flex;
       gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
       padding: 8px 16px 0;
     }
     .toolbar-btn {
@@ -140,6 +142,20 @@
     .toolbar-btn:active {
       border-color: var(--accent);
       color: var(--accent);
+    }
+    .toolbar-select {
+      min-width: 112px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1.5px solid var(--border-strong);
+      background: var(--white);
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      outline: none;
+      cursor: pointer;
     }
     .audit-panel {
       margin: 8px 16px 0;
@@ -434,6 +450,7 @@
     </div>
     <div class="count-bar" id="countBar"></div>
     <div class="toolbar">
+      <select class="toolbar-select" id="filterSelect" aria-label="篩選類別"></select>
       <button class="toolbar-btn" id="auditCategoriesBtn">檢查分類</button>
     </div>
     <div class="audit-panel" id="auditPanel">
@@ -663,6 +680,10 @@
     const trimmed = String(cat || '').trim();
     return trimmed || '其他';
   }
+  function ensureActiveFilter() {
+    const available = ['全部', ...uniqueCategories()];
+    if (!available.includes(activeFilter)) activeFilter = '全部';
+  }
   function downloadFile(filename, content, type) {
     const blob = new Blob([content], { type });
     const url = URL.createObjectURL(blob);
@@ -718,6 +739,14 @@
   function updateCategoryOptions() {
     const list = document.getElementById('catList');
     list.innerHTML = uniqueCategories().map(cat => `<option value="${esc(cat)}">`).join('');
+  }
+  function renderFilterSelect() {
+    ensureActiveFilter();
+    const select = document.getElementById('filterSelect');
+    const cats = ['全部', ...uniqueCategories()];
+    select.innerHTML = cats.map(cat =>
+      `<option value="${esc(cat)}"${cat === activeFilter ? ' selected' : ''}>${esc(cat)}</option>`
+    ).join('');
   }
   function populateEditCategoryOptions(selectedCat) {
     const select = document.getElementById('editCatSelect');
@@ -793,6 +822,7 @@
     if (changes.length) {
       saveData();
       renderFilters();
+      renderFilterSelect();
       renderVocab();
       updateCategoryOptions();
       showAuditResults(changes);
@@ -805,6 +835,37 @@
   }
   function editWordCategory(id) {
     openEdit(id, 'category');
+  }
+  function renameCategory(oldCat) {
+    if (!oldCat || oldCat === '全部') return;
+
+    const nextCat = prompt(`將類別「${oldCat}」改做咩名？`, oldCat);
+    if (nextCat === null) return;
+
+    const normalized = normalizeCategory(nextCat);
+    if (normalized === oldCat) return;
+    if (categoryExists(normalized)) {
+      showToast(`已經有類別「${normalized}」`);
+      return;
+    }
+
+    let changed = 0;
+    vocab.forEach(word => {
+      if (word.cat === oldCat) {
+        word.cat = normalized;
+        changed += 1;
+      }
+    });
+
+    if (!changed) return;
+
+    if (activeFilter === oldCat) activeFilter = normalized;
+    saveData();
+    renderFilters();
+    renderFilterSelect();
+    renderVocab();
+    updateCategoryOptions();
+    showToast(`已將「${oldCat}」改名做「${normalized}」`);
   }
 
   // ── Escape helpers ──
@@ -828,6 +889,7 @@
 
   // ── Filter chips ──
   function renderFilters() {
+    ensureActiveFilter();
     const row = document.getElementById('filterRow');
     const cats = ['全部', ...uniqueCategories()];
     row.innerHTML = cats.map(c =>
@@ -835,15 +897,14 @@
     ).join('');
     row.querySelectorAll('.chip').forEach(btn => {
       btn.addEventListener('click', () => {
-        activeFilter = btn.dataset.cat;
-        renderFilters();
-        renderVocab();
+        renameCategory(btn.dataset.cat);
       });
     });
   }
 
   // ── Vocab list ──
   function renderVocab() {
+    ensureActiveFilter();
     const q = document.getElementById('searchInput').value.trim().toLowerCase();
     let list = vocab;
     if (activeFilter !== '全部') list = list.filter(w => w.cat === activeFilter);
@@ -880,6 +941,12 @@
   }
 
   document.getElementById('searchInput').addEventListener('input', renderVocab);
+  document.getElementById('filterSelect').addEventListener('change', e => {
+    activeFilter = e.target.value;
+    renderFilterSelect();
+    renderFilters();
+    renderVocab();
+  });
   document.getElementById('auditCategoriesBtn').addEventListener('click', auditCategories);
   document.getElementById('addZh').addEventListener('input', syncAddCategoryFromZh);
   document.getElementById('addCat').addEventListener('input', () => {
@@ -905,7 +972,7 @@
       vocab.push({ id: nextId(), zh, ro, cat });
       showToast('已新增：' + zh);
     }
-    saveData(); renderFilters(); renderVocab(); updateCategoryOptions();
+    saveData(); renderFilters(); renderFilterSelect(); renderVocab(); updateCategoryOptions();
     document.getElementById('addZh').value = '';
     document.getElementById('addRo').value = '';
     document.getElementById('addCat').value = '';
@@ -949,6 +1016,7 @@
       activeFilter = '全部';
       saveData();
       renderFilters();
+      renderFilterSelect();
       renderVocab();
       updateCategoryOptions();
       switchTab('Vocab');
@@ -994,7 +1062,7 @@
     const w = vocab.find(x => x.id === id);
     if (!w) return;
     w.zh = zh; w.ro = ro; w.cat = cat;
-    saveData(); renderFilters(); renderVocab(); updateCategoryOptions();
+    saveData(); renderFilters(); renderFilterSelect(); renderVocab(); updateCategoryOptions();
     closeModal();
     showToast('已更新：' + zh);
   });
@@ -1005,7 +1073,7 @@
     if (!w) return;
     if (!confirm(`確定刪除「${w.zh}」？`)) return;
     vocab = vocab.filter(x => x.id !== id);
-    saveData(); renderFilters(); renderVocab(); updateCategoryOptions();
+    saveData(); renderFilters(); renderFilterSelect(); renderVocab(); updateCategoryOptions();
     closeModal();
     showToast('已刪除：' + w.zh);
   });
@@ -1085,7 +1153,7 @@
       vocab.push({ id: nextId(), zh, ro, cat });
       showToast('已新增：' + zh);
     }
-    saveData(); renderFilters(); renderVocab(); updateCategoryOptions();
+    saveData(); renderFilters(); renderFilterSelect(); renderVocab(); updateCategoryOptions();
     closeQuickAdd();
     // 重新分析句子
     document.getElementById('analyzeBtn').click();
@@ -1104,6 +1172,7 @@
   // ── Init ──
   loadData();
   renderFilters();
+  renderFilterSelect();
   renderVocab();
   updateCategoryOptions();
   updateAddCategoryHint('');

@@ -2,10 +2,12 @@
 <html lang="zh-HK">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>潮汕話詞庫</title>
 
   <link rel="manifest" href="./manifest.json">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./icon.svg">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="潮汕話詞庫">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -282,6 +284,7 @@
       background: var(--white); color: var(--text);
       font-family: 'Figtree', sans-serif; font-size: 15px;
       outline: none; transition: border-color 0.15s;
+      appearance: none;
     }
     .form-input:focus { border-color: var(--accent); }
     .form-input::placeholder { color: var(--text-muted); }
@@ -535,7 +538,11 @@
       </div>
       <div class="form-group">
         <label class="form-label">類別</label>
-        <input class="form-input" id="editCat" list="catList" placeholder="例：食材">
+        <select class="form-input" id="editCatSelect"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">自訂類別（可選）</label>
+        <input class="form-input" id="editCatCustom" type="text" placeholder="如果唔想用現有類別，可以自己輸入">
       </div>
       <div class="modal-actions">
         <button class="btn-danger" id="deleteBtn">刪除</button>
@@ -712,6 +719,27 @@
     const list = document.getElementById('catList');
     list.innerHTML = uniqueCategories().map(cat => `<option value="${esc(cat)}">`).join('');
   }
+  function populateEditCategoryOptions(selectedCat) {
+    const select = document.getElementById('editCatSelect');
+    const options = uniqueCategories();
+    const hasSelected = options.includes(selectedCat);
+    select.innerHTML = [
+      ...options.map(cat => `<option value="${esc(cat)}"${cat === selectedCat ? ' selected' : ''}>${esc(cat)}</option>`),
+      `<option value="__custom__"${hasSelected ? '' : ' selected'}>自訂類別</option>`
+    ].join('');
+    document.getElementById('editCatCustom').value = hasSelected ? '' : selectedCat;
+  }
+  function getEditCategoryValue() {
+    const selectValue = document.getElementById('editCatSelect').value;
+    const customValue = document.getElementById('editCatCustom').value;
+    return normalizeCategory(selectValue === '__custom__' ? customValue : selectValue);
+  }
+  function syncEditCategoryInputState() {
+    const isCustom = document.getElementById('editCatSelect').value === '__custom__';
+    const input = document.getElementById('editCatCustom');
+    input.disabled = !isCustom;
+    input.placeholder = isCustom ? '輸入新類別' : '如果唔想用現有類別，可以自己輸入';
+  }
   function updateAddCategoryHint(cat) {
     const hint = document.getElementById('addCatHint');
     if (!cat) {
@@ -776,21 +804,7 @@
     showToast('目前分類全部正常');
   }
   function editWordCategory(id) {
-    const word = vocab.find(item => item.id === id);
-    if (!word) return;
-
-    const input = prompt('修改類別', word.cat);
-    if (input === null) return;
-
-    const nextCategory = normalizeCategory(input);
-    if (nextCategory === normalizeCategory(word.cat)) return;
-
-    word.cat = nextCategory;
-    saveData();
-    renderFilters();
-    renderVocab();
-    updateCategoryOptions();
-    showToast(`已更新「${word.zh}」類別`);
+    openEdit(id, 'category');
   }
 
   // ── Escape helpers ──
@@ -947,14 +961,18 @@
   });
 
   // ── Edit modal ──
-  function openEdit(id) {
+  function openEdit(id, focusField = '') {
     const w = vocab.find(x => x.id === id);
     if (!w) return;
     document.getElementById('editId').value  = id;
     document.getElementById('editZh').value  = w.zh;
     document.getElementById('editRo').value  = w.ro;
-    document.getElementById('editCat').value = w.cat;
+    populateEditCategoryOptions(w.cat);
+    syncEditCategoryInputState();
     document.getElementById('editModal').classList.add('open');
+    if (focusField === 'category') {
+      setTimeout(() => document.getElementById('editCatSelect').focus(), 80);
+    }
   }
 
   function closeModal() {
@@ -965,12 +983,13 @@
     if (e.target === document.getElementById('editModal')) closeModal();
   });
   document.getElementById('cancelBtn').addEventListener('click', closeModal);
+  document.getElementById('editCatSelect').addEventListener('change', syncEditCategoryInputState);
 
   document.getElementById('saveEditBtn').addEventListener('click', () => {
     const id  = parseInt(document.getElementById('editId').value);
     const zh  = document.getElementById('editZh').value.trim();
     const ro  = document.getElementById('editRo').value.trim();
-    const cat = normalizeCategory(document.getElementById('editCat').value);
+    const cat = getEditCategoryValue();
     if (!zh || !ro) { showToast('請填寫漢字同注音'); return; }
     const w = vocab.find(x => x.id === id);
     if (!w) return;
@@ -1088,6 +1107,7 @@
   renderVocab();
   updateCategoryOptions();
   updateAddCategoryHint('');
+  syncEditCategoryInputState();
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js');

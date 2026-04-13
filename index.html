@@ -637,12 +637,41 @@
   ];
 
   // ── State ──
+  const APP_VERSION = '2026.04.14.1';
   const STORAGE_KEY = 'teochew_vocab_v1';
+  const CATEGORY_REPAIR_MAP = {
+    '粉肠': '食材',
+    '淡菜': '食材',
+    '面薄': '麵食',
+    '多谢': '常用語',
+    '不用': '常用語',
+    '多少钱': '常用語',
+    '飞机': '交通',
+    '单车': '交通',
+    '和': '動詞',
+    '商场': '地點'
+  };
   let vocab = [];
   let activeFilter = '全部';
   let addCatTouched = false;
 
   // ── Storage ──
+  function repairKnownCategories(list) {
+    let repaired = 0;
+
+    list.forEach(word => {
+      const expected = CATEGORY_REPAIR_MAP[word.zh];
+      if (!expected) return;
+
+      const current = normalizeCategory(word.cat);
+      if (current === expected) return;
+
+      word.cat = expected;
+      repaired += 1;
+    });
+
+    return repaired;
+  }
   function loadData() {
     const fallback = JSON.parse(JSON.stringify(DEFAULT_VOCAB));
 
@@ -655,6 +684,11 @@
 
       const parsed = JSON.parse(saved);
       vocab = Array.isArray(parsed) ? parsed : fallback;
+      const repaired = repairKnownCategories(vocab);
+      if (repaired) {
+        saveData();
+        setTimeout(() => showToast(`已修復 ${repaired} 個已知分類錯誤`), 80);
+      }
     } catch (err) {
       localStorage.removeItem(STORAGE_KEY);
       vocab = fallback;
@@ -723,14 +757,19 @@
 
   // ── Auto-guess category ──
   function guessCategory(zh) {
-    if ([...'我你他她它您咱俺'].some(c => zh.includes(c))) return '代詞';
-    if ([...'去來到走搭坐吃喝買賣看聽說問叫要'].some(c => zh === c)) return '動詞';
-    if (/[菜草薯瓜豆芽苗蔥蒜薑韭]/.test(zh)) return '蔬菜';
-    if (/[肉雞魚蝦蟹鴨豬牛羊蚝蛤蜆腸肝腰心]/.test(zh)) return '食材';
-    if (/[粿條粉麵飯餃包餅糕]/.test(zh)) return '麵食';
-    if (/[車機船鐵巴飛高地單摩汽輪]/.test(zh)) return '交通';
-    if (/[校場園店市院廳館所廟街公]/.test(zh)) return '地點';
-    return '其他';
+    const text = String(zh || '').trim();
+    if (!text) return null;
+
+    if ([...'我你他她它您咱俺'].some(c => text.includes(c))) return '代詞';
+    if ([...'去來到走搭坐吃喝買賣看聽說问問叫要用'].some(c => text === c)) return '動詞';
+    if (/[菜草薯瓜豆芽苗蔥葱蒜薑姜韭]/.test(text)) return '蔬菜';
+    if (/[肉雞鸡魚鱼蝦虾蟹鴨鸭豬猪牛羊蚝蠔蛤蜆肠腸肝腰心]/.test(text)) return '食材';
+    if (/[粿條条粉麵面飯饭餃饺包餅饼糕]/.test(text)) return '麵食';
+    if (/[車车機机船鐵铁巴飛飞高地單单摩汽輪轮]/.test(text)) return '交通';
+    if (/[校場场園园店市院廳厅館馆所廟庙街商場场]/.test(text)) return '地點';
+    if (['多谢', '謝謝', '唔使', '不用', '多少钱', '多少錢'].includes(text)) return '常用語';
+
+    return null;
   }
   function suggestedCategory(zh) {
     const guessed = guessCategory(zh);
@@ -813,7 +852,7 @@
     vocab.forEach(word => {
       const current = normalizeCategory(word.cat);
       const suggested = guessCategory(word.zh);
-      if (current !== suggested) {
+      if (suggested && current !== suggested) {
         changes.push({ zh: word.zh, from: current, to: suggested });
         word.cat = suggested;
       }
@@ -913,7 +952,7 @@
     if (activeFilter !== '全部') list = list.filter(w => w.cat === activeFilter);
     if (q) list = list.filter(w => w.zh.includes(q) || w.ro.toLowerCase().includes(q));
 
-    document.getElementById('countBar').textContent = `${list.length} 個詞語`;
+    document.getElementById('countBar').textContent = `${list.length} 個詞語 · v${APP_VERSION}`;
 
     const el = document.getElementById('wordList');
     if (!list.length) {
@@ -1182,7 +1221,7 @@
   syncEditCategoryInputState();
 
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js');
+    navigator.serviceWorker.register(`./sw.js?v=${APP_VERSION}`);
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       window.location.reload();
     });

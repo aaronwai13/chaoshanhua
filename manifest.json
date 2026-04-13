@@ -1,6 +1,6 @@
 {
-  "name": "潮汕話學習",
-  "short_name": "潮汕話",
+  "name": "潮汕話詞庫",
+  "short_name": "潮汕話詞庫",
   "description": "潮汕話詞庫、句子注音同詞語管理",
   "start_url": "./",
   "display": "standalone",

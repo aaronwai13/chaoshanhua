@@ -436,8 +436,7 @@
     </div>
     <div class="count-bar" id="countBar"></div>
     <div class="toolbar">
-      <button class="toolbar-btn" id="refreshBtn">重新整理</button>
-      <button class="toolbar-btn" id="auditCategoriesBtn">檢查分類</button>
+<button class="toolbar-btn" id="auditCategoriesBtn">檢查分類</button>
     </div>
     <div class="audit-panel" id="auditPanel">
       <div class="audit-title">分類檢查</div>
@@ -991,21 +990,7 @@
   }
 
   document.getElementById('searchInput').addEventListener('input', renderVocab);
-  document.getElementById('refreshBtn').addEventListener('click', async () => {
-    showToast('重新整理中...');
-
-    if ('serviceWorker' in navigator) {
-      try {
-        const registration = await navigator.serviceWorker.getRegistration();
-        if (registration) await registration.update();
-      } catch (err) {
-        // Fall back to a normal reload if SW update check fails.
-      }
-    }
-
-    setTimeout(() => window.location.reload(), 120);
-  });
-  document.getElementById('auditCategoriesBtn').addEventListener('click', auditCategories);
+document.getElementById('auditCategoriesBtn').addEventListener('click', auditCategories);
   document.getElementById('addZh').addEventListener('input', syncAddCategoryFromZh);
   document.getElementById('addCat').addEventListener('input', () => {
     addCatTouched = true;

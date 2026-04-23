@@ -1,4 +1,4 @@
-const CACHE = 'teochew-v2026.04.14.4';
+const CACHE = 'teochew-v2026.04.23.1';
 
 function shouldCache(request, response) {
   return request.method === 'GET' && response && response.ok;

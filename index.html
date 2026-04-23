@@ -668,7 +668,15 @@
       }
 
       const parsed = JSON.parse(saved);
-      vocab = Array.isArray(parsed) ? parsed : fallback;
+      const normalized = normalizeImportedVocab(parsed);
+      if (!normalized) {
+        localStorage.removeItem(STORAGE_KEY);
+        vocab = fallback;
+        setTimeout(() => showToast('本地資料格式唔啱，已回復預設詞庫'), 80);
+        return;
+      }
+
+      vocab = normalized;
       const repaired = repairKnownCategories(vocab);
       if (repaired) {
         saveData();
@@ -738,6 +746,9 @@
     });
 
     return normalized.length ? normalized : null;
+  }
+  function findDuplicateZh(zh, excludeId = null) {
+    return vocab.find(w => w.zh === zh && w.id !== excludeId);
   }
 
   // ── Auto-guess category ──
@@ -1103,6 +1114,10 @@ document.getElementById('auditCategoriesBtn').addEventListener('click', auditCat
     if (!zh || !ro) { showToast('請填寫漢字同注音'); return; }
     const w = vocab.find(x => x.id === id);
     if (!w) return;
+    if (findDuplicateZh(zh, id)) {
+      showToast('已經有同名詞語，請直接修改原本嗰筆');
+      return;
+    }
     w.zh = zh; w.ro = ro; w.cat = cat;
     saveData(); renderFilters(); renderVocab(); updateCategoryOptions();
     closeModal();

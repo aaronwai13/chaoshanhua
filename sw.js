@@ -1,5 +1,9 @@
 const CACHE = 'teochew-v2026.04.14.4';
 
+function shouldCache(request, response) {
+  return request.method === 'GET' && response && response.ok;
+}
+
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE).then(c => c.addAll(['./', './index.html', './manifest.json']))
@@ -20,7 +24,9 @@ self.addEventListener('fetch', e => {
   if (e.request.mode === 'navigate') {
     e.respondWith(
       fetch(e.request).then(res => {
-        caches.open(CACHE).then(c => c.put(e.request, res.clone()));
+        if (shouldCache(e.request, res)) {
+          caches.open(CACHE).then(c => c.put(e.request, res.clone()));
+        }
         return res;
       }).catch(() => caches.match(e.request))
     );
@@ -29,7 +35,9 @@ self.addEventListener('fetch', e => {
   e.respondWith(
     caches.match(e.request).then(cached =>
       cached || fetch(e.request).then(res => {
-        caches.open(CACHE).then(c => c.put(e.request, res.clone()));
+        if (shouldCache(e.request, res)) {
+          caches.open(CACHE).then(c => c.put(e.request, res.clone()));
+        }
         return res;
       })
     )
